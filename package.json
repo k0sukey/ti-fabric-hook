@@ -1,0 +1,12 @@
+{
+  "name": "ti.fabric",
+  "version": "0.0.1",
+  "description": "Fabric for Titanium",
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "^1.0.0",
+    "wrench": "^1.5.8",
+    "xcode": "^0.7.0"
+  }
+}
