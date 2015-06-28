@@ -1,11 +1,12 @@
 {
   "name": "ti.fabric",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Fabric for Titanium",
-  "author": "",
+  "author": "Kosuke Isobe",
   "license": "MIT",
   "dependencies": {
     "chalk": "^1.0.0",
+    "lodash": "^3.9.3",
     "wrench": "^1.5.8",
     "xcode": "^0.7.0"
   }

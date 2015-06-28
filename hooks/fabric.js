@@ -1,13 +1,36 @@
-var chalk = require('chalk'),
+var _ = require('lodash'),
+	chalk = require('chalk'),
 	fs = require('fs'),
 	path = require('path'),
 	wrench = require('wrench'),
-	xcode = require('xcode');
+	xcode = require('xcode'),
+	pkg = require(path.join(__dirname, '..', 'package.json'));
 
-exports.id = 'be.k0suke.ti-fabric-hook';
+exports.id = 'ti.fabric';
 exports.cliVersion = '>=3.2';
 
 exports.init = function init(logger, config, cli, appc) {
+	if (!_.has(cli.argv, 'fabric')) {
+		return;
+	}
+
+	if (_.has(cli.argv, 'fabric-help')) {
+		logger.info('\n\n' + chalk.cyan.bold(pkg.name) + ', Plugin version ' + pkg.version + ', ' + pkg.description + '\n' + 
+			chalk.gray('Copyright (c) ' + pkg.author) + '\n\n' +
+			'Usage: ' + chalk.cyan('titanium build --fabric') + '\n\n' +
+			'Options:\n' +
+			'\t' + chalk.cyan('--fabric-help') + '\t\t\tdisplay this message\n\n' +
+			'Crashlytics Options:\n' +
+			'\t' + chalk.cyan('--crashlytics-ipaPath') + '\t\t[path to IPA] ' + chalk.gray('[default: ' + path.join('build', 'iphone', 'build', 'Debug-iphoneos', cli.tiapp.name + '.ipa') + ']') + '\n' +
+			'\t' + chalk.cyan('--crashlytics-emails') + '\t\t[tester email address],[email] ' + chalk.red('auto deploy, email specific required') + '\n' +
+			'\t' + chalk.cyan('--crashlytics-groupAliases') + '\t[group build server alias],[group] ' + chalk.gray('[default: no specific]') + '\n' +
+			'\t' + chalk.cyan('--crashlytics-notesPath') + '\t\t[release notes] ' + chalk.gray('[default: ' + path.join('plugins', pkg.name, pkg.version, 'hooks', 'notes.txt') + ']') + '\n' +
+			'\t' + chalk.cyan('--crashlytics-notifications') + '\tYES|NO ' + chalk.gray('[default: YES]') + '\n' +
+			'\t' + chalk.cyan('--crashlytics-debug') + '\t\tYES|NO ' + chalk.gray('[default: NO]') + '\n' +
+			'');
+		process.exit(1);
+	}
+
 	var source = {
 			fabric: path.join(__dirname, '..', '..', '..', '..', 'Fabric.framework'),
 			crashlytics: path.join(__dirname, '..', '..', '..', '..', 'Crashlytics.framework')
@@ -20,7 +43,16 @@ exports.init = function init(logger, config, cli, appc) {
 		pbxproj = path.join(__dirname, '..', '..', '..', '..', 'build', 'iphone', cli.tiapp.name + '.xcodeproj', 'project.pbxproj'),
 		project = xcode.project(pbxproj),
 		xcconfig = path.join(__dirname, '..', '..', '..', '..', 'build', 'iphone', 'project.xcconfig'),
-		code;
+		crashlytics = {
+			ipaPath: path.join(__dirname, '..', '..', '..', '..', 'build', 'iphone', 'build', 'Debug-iphoneos', cli.tiapp.name + '.ipa'),
+			emails: '',
+			groupAliases: '',
+			notesPath: path.join(__dirname, '..', '..', '..', '..', 'plugins', pkg.name, pkg.version, 'hooks', 'notes.txt'),
+			notifications: 'YES',
+			debug: 'NO'
+		},
+		code = '',
+		option = [];
 
 	cli.on('build.pre.construct', function(data, callback){
 		if (!fs.existsSync(source.fabric)) {
@@ -32,6 +64,28 @@ exports.init = function init(logger, config, cli, appc) {
 			logger.error(source.crashlytics + ' does not exists');
 			process.exit(1);
 		}
+
+		if (!_.has(cli.tiapp, 'ios') ||
+			!_.has(cli.tiapp.ios, 'plist') ||
+			!_.has(cli.tiapp.ios.plist, 'Fabric') ||
+			!_.has(cli.tiapp.ios.plist.Fabric, 'APIKey') ||
+			!_.has(cli.tiapp.ios.plist.Fabric, 'BuildSecret')) {
+			logger.error('Does not detect the Fabric section in tiapp.xml');
+			process.exit(1);
+		}
+
+		_.each(_.map(cli.argv, function(item, index){
+			if (index.match(/^crashlytics-/)) {
+				return {
+					key: index.replace(/^crashlytics-/, ''),
+					value: item
+				};
+			}
+		}), function(item){
+			if (item && _.has(crashlytics, item.key)) {
+				crashlytics[item.key] = item.value;
+			}
+		});
 
 		callback();
 	});
@@ -78,6 +132,24 @@ exports.init = function init(logger, config, cli, appc) {
 	});
 
 	cli.on('build.finalize', function(data, callback){
-		callback();
+		if (crashlytics.emails === '') {
+			logger.info('.ipa file deploy to Fabric Crashlytics usage at ' + chalk.cyan.underline('https://dev.twitter.com/crashlytics/beta-distribution/ios'));
+			callback();
+		} else {
+			option.push(cli.tiapp.ios.plist.Fabric.APIKey);
+			option.push(cli.tiapp.ios.plist.Fabric.BuildSecret);
+
+			_.map(crashlytics, function(item, index){
+				if (item) {
+					option.push('-' + index);
+					option.push(item);
+				}
+			});
+
+			appc.subprocess.run(path.join(destination.crashlytics, 'submit'), option, function(code, res, err){
+				logger.info(res);
+				callback();
+			});
+		}
 	});
 };
