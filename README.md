@@ -6,7 +6,9 @@ Fabric Crashlytics in Titanium build hook.
 
 * **This hook plugin is working in progress**
 * Working on Titanium SDK 4.0.0.GA
-* Code injection to TiApp.m
+* Code injection to build/iphone/Classes/TiApp.m
+* Code injection to build/iphone/project.xcconfig
+* Code injection to build/iphone/[YOUR APP NAME].xcodeproj/project.pbxproj
 * If it does not launch, ```$ ti clean``` :grin:
 
 ## Preparation
@@ -57,13 +59,13 @@ e.g.
 
 ```xml
 <plugins>
-	<plugin version="0.0.1">ti.fabric</plugin>
+	<plugin version="0.0.3">ti.fabric</plugin>
 </plugins>
 ```
 
 ## Building
 
-### Manually deploy
+### Manual deploy
 
 ```sh
 $ ti build -p ios -T device --build-only --fabric
@@ -72,7 +74,11 @@ $ ti build -p ios -T device --build-only --fabric
 ### Auto deploy
 
 ```sh
-$ ti build -p ios -T device --build-only --fabric --crashlytics-email foo@example.com
+$ ti build -p ios -T device --build-only --fabric --crashlytics-emails foo@example.com
+```
+
+```sh
+$ ti build -p ios -T device --build-only --fabric --crashlytics-groupAliases MyTesters
 ```
 
 ### Show all options at the help

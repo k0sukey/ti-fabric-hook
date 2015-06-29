@@ -17,17 +17,18 @@ exports.init = function init(logger, config, cli, appc) {
 	if (_.has(cli.argv, 'fabric-help')) {
 		logger.info('\n\n' + chalk.cyan.bold(pkg.name) + ', Plugin version ' + pkg.version + ', ' + pkg.description + '\n' + 
 			chalk.gray('Copyright (c) ' + pkg.author) + '\n\n' +
-			'Usage: ' + chalk.cyan('titanium build --fabric') + '\n\n' +
+			'Usage: ' + chalk.cyan('titanium build --fabric [options]') + '\n' +
+			'   ' + chalk.gray('Auto deploy requires the specific of the --crashlytics-emails or --crashlytics-groupAliases option') + '\n\n' +
 			'Options:\n' +
-			'\t' + chalk.cyan('--fabric-help') + '\t\t\tdisplay this message\n\n' +
+			'   ' + chalk.cyan('--fabric-help') + '\t\tdisplay this message\n\n' +
 			'Crashlytics Options:\n' +
-			'\t' + chalk.cyan('--crashlytics-ipaPath') + '\t\t[path to IPA] ' + chalk.gray('[default: ' + path.join('build', 'iphone', 'build', 'Debug-iphoneos', cli.tiapp.name + '.ipa') + ']') + '\n' +
-			'\t' + chalk.cyan('--crashlytics-emails') + '\t\t[tester email address],[email] ' + chalk.red('auto deploy, email specific required') + '\n' +
-			'\t' + chalk.cyan('--crashlytics-groupAliases') + '\t[group build server alias],[group] ' + chalk.gray('[default: no specific]') + '\n' +
-			'\t' + chalk.cyan('--crashlytics-notesPath') + '\t\t[release notes] ' + chalk.gray('[default: ' + path.join('plugins', pkg.name, pkg.version, 'hooks', 'notes.txt') + ']') + '\n' +
-			'\t' + chalk.cyan('--crashlytics-notifications') + '\tYES|NO ' + chalk.gray('[default: YES]') + '\n' +
-			'\t' + chalk.cyan('--crashlytics-debug') + '\t\tYES|NO ' + chalk.gray('[default: NO]') + '\n' +
-			'');
+			'   ' + chalk.cyan('--crashlytics-ipaPath') + '\t[path to IPA] ' + chalk.gray('[default: ' + path.join('build', 'iphone', 'build', 'Debug-iphoneos', cli.tiapp.name + '.ipa') + ']') + '\n' +
+			'   ' + chalk.cyan('--crashlytics-emails') + '\t\t[tester email address],[email] ' + chalk.gray('[default: no specific]') + '\n' +
+			'   ' + chalk.cyan('--crashlytics-groupAliases') + '\t[group build server alias],[group] ' + chalk.gray('[default: no specific]') + '\n' +
+			'   ' + chalk.cyan('--crashlytics-notesPath') + '\t[release notes] ' + chalk.gray('[default: no specific]') + '\n' +
+			'   ' + chalk.cyan('--crashlytics-notifications') + '\tYES|NO ' + chalk.gray('[default: no specific]') + '\n' +
+			'   ' + chalk.cyan('--crashlytics-debug') + '\t\tYES|NO ' + chalk.gray('[default: no specific]') + '\n');
+
 		process.exit(1);
 	}
 
@@ -50,9 +51,7 @@ exports.init = function init(logger, config, cli, appc) {
 			notesPath: path.join(__dirname, '..', '..', '..', '..', 'plugins', pkg.name, pkg.version, 'hooks', 'notes.txt'),
 			notifications: 'YES',
 			debug: 'NO'
-		},
-		code = '',
-		option = [];
+		};
 
 	cli.on('build.pre.construct', function(data, callback){
 		if (!fs.existsSync(source.fabric)) {
@@ -101,6 +100,8 @@ exports.init = function init(logger, config, cli, appc) {
 	});
 
 	cli.on('build.ios.prerouting', function(data, callback){
+		var code = '';
+
 		logger.info('Fabric code injecting: ' + chalk.cyan(tiappm));
 		code = fs.readFileSync(tiappm, 'utf8');
 		code = code.replace(/(#import\s"TiApp\.h")/, '$1\n#import <Fabric/Fabric.h>\n#import <Crashlytics/Crashlytics.h>');
@@ -132,10 +133,15 @@ exports.init = function init(logger, config, cli, appc) {
 	});
 
 	cli.on('build.finalize', function(data, callback){
-		if (crashlytics.emails === '') {
+		var option = [];
+
+		if (crashlytics.emails === '' && crashlytics.groupAliases === '') {
 			logger.info('.ipa file deploy to Fabric Crashlytics usage at ' + chalk.cyan.underline('https://dev.twitter.com/crashlytics/beta-distribution/ios'));
+
 			callback();
 		} else {
+			logger.info('Auto deploying Fabric/Crashlytics...');
+
 			option.push(cli.tiapp.ios.plist.Fabric.APIKey);
 			option.push(cli.tiapp.ios.plist.Fabric.BuildSecret);
 
@@ -147,7 +153,10 @@ exports.init = function init(logger, config, cli, appc) {
 			});
 
 			appc.subprocess.run(path.join(destination.crashlytics, 'submit'), option, function(code, res, err){
-				logger.info(res);
+				_.each(res.split('\n'), function(item){
+					logger.info(item);
+				});
+
 				callback();
 			});
 		}
