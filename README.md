@@ -5,7 +5,9 @@ Fabric Crashlytics in Titanium build hook.
 ## Cuation
 
 * **This hook plugin is working in progress**
-* Working on Titanium SDK 4.0.0.GA
+* Working on Titanium SDK 4.1.0.GA
+ * <= v0.0.4 Titanium SDK 4.0.0.GA
+ * v0.0.5 Titanium SDK 4.1.0.GA
 * Code injection to build/iphone/Classes/TiApp.m
 * Code injection to build/iphone/project.xcconfig
 * Code injection to build/iphone/[YOUR APP NAME].xcodeproj/project.pbxproj
@@ -59,7 +61,7 @@ e.g.
 
 ```xml
 <plugins>
-	<plugin version="0.0.3">ti.fabric</plugin>
+	<plugin version="0.0.5">ti.fabric</plugin>
 </plugins>
 ```
 

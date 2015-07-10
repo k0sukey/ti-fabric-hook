@@ -18,7 +18,6 @@ exports.init = function init(logger, config, cli, appc) {
 		logger.info('\n\n' + chalk.cyan.bold(pkg.name) + ', Plugin version ' + pkg.version + ', ' + pkg.description + '\n' + 
 			chalk.gray('Copyright (c) ' + pkg.author) + '\n\n' +
 			'Usage: ' + chalk.cyan('titanium build --fabric [options]') + '\n' +
-			'   ' + chalk.gray('Auto deploy requires the specific of the --crashlytics-emails or --crashlytics-groupAliases option') + '\n\n' +
 			'Options:\n' +
 			'   ' + chalk.cyan('--fabric-help') + '\t\tdisplay this message\n\n' +
 			'Crashlytics Options:\n' +
@@ -27,7 +26,8 @@ exports.init = function init(logger, config, cli, appc) {
 			'   ' + chalk.cyan('--crashlytics-groupAliases') + '\t[group build server alias],[group] ' + chalk.gray('[default: no specific]') + '\n' +
 			'   ' + chalk.cyan('--crashlytics-notesPath') + '\t[release notes] ' + chalk.gray('[default: no specific]') + '\n' +
 			'   ' + chalk.cyan('--crashlytics-notifications') + '\tYES|NO ' + chalk.gray('[default: no specific]') + '\n' +
-			'   ' + chalk.cyan('--crashlytics-debug') + '\t\tYES|NO ' + chalk.gray('[default: no specific]') + '\n');
+			'   ' + chalk.cyan('--crashlytics-debug') + '\t\tYES|NO ' + chalk.gray('[default: no specific]') + '\n' +
+			'   ' + chalk.cyan('--crashlytics-submit') + '\t\tYES|NO ' + chalk.gray('[default: NO]') + '\n');
 
 		process.exit(1);
 	}
@@ -48,9 +48,10 @@ exports.init = function init(logger, config, cli, appc) {
 			ipaPath: path.join(__dirname, '..', '..', '..', '..', 'build', 'iphone', 'build', 'Debug-iphoneos', cli.tiapp.name + '.ipa'),
 			emails: '',
 			groupAliases: '',
-			notesPath: path.join(__dirname, '..', '..', '..', '..', 'plugins', pkg.name, pkg.version, 'hooks', 'notes.txt'),
-			notifications: 'YES',
-			debug: 'NO'
+			notesPath: '',
+			notifications: '',
+			debug: '',
+			submit: 'NO'
 		};
 
 	cli.on('build.pre.construct', function(data, callback){
@@ -111,7 +112,7 @@ exports.init = function init(logger, config, cli, appc) {
 
 		logger.info('Fabric code injecting: ' + chalk.cyan(xcconfig));
 		code = fs.readFileSync(xcconfig, 'utf8');
-		code = code.replace(/(OTHER_LDFLAGS\[sdk=iphoneos\*\]=\$\(inherited\)\s-weak_framework\siAd)/, '$1 -framework Fabric -framework Crashlytics');
+		code = code.replace(/(TICORE_LD_FLAGS=-weak-lti_ios_profiler\s-weak-lti_ios_debugger\s-weak-lTiCore)/, '$1 -framework Fabric -framework Crashlytics');
 		fs.writeFileSync(xcconfig, code);
 
 		logger.info('Fabric code injecting: ' + chalk.cyan(pbxproj));
@@ -135,18 +136,14 @@ exports.init = function init(logger, config, cli, appc) {
 	cli.on('build.finalize', function(data, callback){
 		var option = [];
 
-		if (crashlytics.emails === '' && crashlytics.groupAliases === '') {
-			logger.info('.ipa file deploy to Fabric Crashlytics usage at ' + chalk.cyan.underline('https://dev.twitter.com/crashlytics/beta-distribution/ios'));
-
-			callback();
-		} else {
+		if (crashlytics.submit === 'YES') {
 			logger.info('Auto deploying Fabric/Crashlytics...');
 
 			option.push(cli.tiapp.ios.plist.Fabric.APIKey);
 			option.push(cli.tiapp.ios.plist.Fabric.BuildSecret);
 
 			_.map(crashlytics, function(item, index){
-				if (item) {
+				if (index !== 'submit' && item) {
 					option.push('-' + index);
 					option.push(item);
 				}
@@ -159,6 +156,10 @@ exports.init = function init(logger, config, cli, appc) {
 
 				callback();
 			});
+		} else {
+			logger.info('.ipa file deploy to Fabric Crashlytics usage at ' + chalk.cyan.underline('https://dev.twitter.com/crashlytics/beta-distribution/ios'));
+
+			callback();
 		}
 	});
 };
